@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCheck, FlaskConical, MoreVertical, Pause, Pencil, Play, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { format, parseISO } from 'date-fns';
+import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { saveSubscription, subscriptionAction } from 'zitejs/api';
 import { Button } from '@project/components/ui/button';
 import { Input } from '@project/components/ui/input';
@@ -56,6 +56,11 @@ export default function Subscriptions() {
   const [del, setDel] = useState<Sub | null>(null);
   const subs = [...state.subscriptions].sort((a, b) => (a.status === b.status ? a.nextRenewal.localeCompare(b.nextRenewal) : a.status === 'Active' ? -1 : 1));
   const daysOfAllowance = metrics.dailyAllowance > 0 ? Math.round(metrics.monthlyCommitments / metrics.dailyAllowance) : 0;
+  const reminders = subs.filter((s) => s.status === 'Active' && s.nextRenewal)
+    .map((s) => ({ ...s, daysUntil: differenceInCalendarDays(parseISO(s.nextRenewal), parseISO(today)) }))
+    .filter((s) => s.daysUntil <= 30)
+    .sort((a, b) => a.daysUntil - b.daysUntil)
+    .slice(0, 4);
 
   const act = async (s: Sub, action: 'pay' | 'pause' | 'resume' | 'delete') => {
     try {
@@ -71,10 +76,26 @@ export default function Subscriptions() {
         <h1 className="text-3xl font-bold tracking-tight">Subscriptions & commitments</h1>
         <Button className="rounded-full" onClick={() => setDlg({ open: true, sub: null })}><Plus className="w-4 h-4 mr-1" /> Add</Button>
       </div>
-      <div className="grid sm:grid-cols-3 gap-3">
+      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
         <div className="rounded-2xl bg-accent text-accent-foreground p-5"><p className="text-xs opacity-80">Locked in each month</p><p className="text-3xl font-bold font-mono">{inr(metrics.monthlyCommitments)}</p></div>
         <div className="rounded-2xl bg-card border border-border p-5"><p className="text-xs text-muted-foreground">Still due this cycle</p><p className="text-3xl font-bold font-mono">{inr(metrics.upcoming)}</p></div>
         <div className="rounded-2xl bg-card border border-border p-5"><p className="text-xs text-muted-foreground">That's</p><p className="text-3xl font-bold font-mono">{daysOfAllowance} days</p><p className="text-xs text-muted-foreground">of your allowance</p></div>
+      </div>
+      <div className="grid lg:grid-cols-2 gap-4">
+        <section className="rounded-2xl border border-border bg-card p-5">
+          <div className="flex items-center justify-between gap-3"><div><p className="font-semibold">Upcoming payment reminders</p><p className="text-xs text-muted-foreground">Active costs due in the next 30 days.</p></div><Badge variant="outline">{reminders.length} due</Badge></div>
+          {reminders.length === 0 ? <p className="mt-4 rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">No active payments due in the next 30 days.</p> : <div className="mt-3 divide-y divide-border">
+            {reminders.map((s) => <div key={s.id} className="flex items-center justify-between gap-3 py-3">
+              <div className="min-w-0"><p className="truncate text-sm font-medium">{s.name}</p><p className={"text-xs " + (s.daysUntil < 0 ? 'text-destructive' : s.daysUntil <= 3 ? 'text-accent' : 'text-muted-foreground')}>{s.daysUntil < 0 ? 'Overdue by ' + Math.abs(s.daysUntil) + ' days' : s.daysUntil === 0 ? 'Due today' : s.daysUntil === 1 ? 'Due tomorrow' : 'Due in ' + s.daysUntil + ' days'} · {format(parseISO(s.nextRenewal), 'MMM d')}</p></div>
+              <span className="shrink-0 font-mono font-semibold">{inr(s.amount)}</span>
+            </div>)}
+          </div>}
+        </section>
+        <section className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-violet-500/10 p-5">
+          <p className="font-semibold">What recurring costs do to your runway</p><p className="mt-1 text-sm text-muted-foreground">Active renewals are included in the forecast. Preview pausing or cancelling one before you commit.</p>
+          <div className="mt-4 grid grid-cols-2 gap-3"><div className="rounded-xl bg-background/80 p-3"><p className="text-xs text-muted-foreground">Cycle-end forecast</p><p className="mt-1 text-xl font-bold font-mono">{metrics.forecastEnd < 0 ? '−' : ''}{inr(metrics.forecastEnd)}</p></div><div className="rounded-xl bg-background/80 p-3"><p className="text-xs text-muted-foreground">Current risk</p><p className="mt-1 text-xl font-bold">{metrics.risk}</p></div></div>
+          <Button variant="outline" className="mt-4 rounded-full" onClick={() => nav('/simulator?type=Cancel%20Subscription')}>Compare a cancellation</Button>
+        </section>
       </div>
       <div className="rounded-2xl bg-card border border-border divide-y divide-border">
         {subs.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">No recurring costs. Lucky you.</p>}
