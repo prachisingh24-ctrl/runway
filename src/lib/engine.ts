@@ -89,10 +89,21 @@ export const dayNum = (s: string) => {
   return Math.floor(Date.UTC(y, m - 1, d) / 86400000);
 };
 export const dateFromNum = (n: number) => new Date(n * 86400000).toISOString().slice(0, 10);
+
+// Monthly renewals stay anchored to the original due day (e.g. Jan 31 -> Feb 28 -> Mar 31).
 export const addMonth = (s: string) => {
-  const [y, m, d] = s.split('-').map(Number);
-  const dt = new Date(Date.UTC(y, m, Math.min(d, 28)));
-  return dt.toISOString().slice(0, 10);
+  const [y, m, d] = s.slice(0, 10).split('-').map(Number);
+  const targetMonth = m; // JavaScript UTC month is zero-based; m is the next month.
+  const lastDay = new Date(Date.UTC(y, targetMonth + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(y, targetMonth, Math.min(d, lastDay))).toISOString().slice(0, 10);
+};
+const monthOccurrence = (anchor: string, offset: number) => {
+  const [y, m, d] = anchor.slice(0, 10).split('-').map(Number);
+  const targetMonthIndex = (m - 1) + offset;
+  const targetYear = y + Math.floor(targetMonthIndex / 12);
+  const monthIndex = ((targetMonthIndex % 12) + 12) % 12;
+  const lastDay = new Date(Date.UTC(targetYear, monthIndex + 1, 0)).getUTCDate();
+  return dateFromNum(Math.floor(Date.UTC(targetYear, monthIndex, Math.min(d, lastDay)) / 86400000));
 };
 
 function effect(t: Txn) {
@@ -110,10 +121,20 @@ export function compute(input: EngineInput): Metrics {
   const day = Math.max(1, Math.min(L, todayN - startN + 1));
   const daysLeft = L - day + 1;
 
+  // Only transactions inside this cycle affect its totals. Posted transactions
+  // (dated today or earlier) define the live balance; future-dated entries are
+  // scheduled cash flows and belong in the forecast, not today's balance.
+  const cycleTransactions = transactions.filter((t) => {
+    const n = dayNum(t.date);
+    return n >= startN && n <= endN;
+  });
+  const postedTransactions = cycleTransactions.filter((t) => dayNum(t.date) <= todayN);
+  const futureTransactions = cycleTransactions.filter((t) => dayNum(t.date) > todayN);
+
   let income = 0, spent = 0, goalNet = 0, unexpected = 0, discretionary = 0;
   const catMap: Record<string, number> = {};
   const dailyDisc: Record<number, number> = {};
-  for (const t of transactions) {
+  for (const t of postedTransactions) {
     if (t.type === 'Income') income += t.amount;
     else if (t.type === 'Expense') {
       spent += t.amount;
@@ -128,26 +149,55 @@ export function compute(input: EngineInput): Metrics {
     else if (t.type === 'Goal Withdrawal') goalNet -= t.amount;
   }
   const balance = start + income - spent - goalNet;
+  const futureNet = futureTransactions.reduce((sum, t) => sum + effect(t), 0);
 
   const active = subscriptions.filter((s) => s.status === 'Active');
   const monthlyCommitments = active.reduce((a, s) => a + s.amount, 0);
-  const dueInCycle = active.filter((s) => {
-    if (!s.nextRenewal) return false;
-    const n = dayNum(s.nextRenewal);
-    return n <= endN; // overdue counts as still owed
-  });
-  const upcoming = dueInCycle.reduce((a, s) => a + s.amount, 0);
-  const freeToSpend = balance - upcoming;
+
+  // The form stores a monthly amount and a next-due date. Project each monthly
+  // occurrence inside this cycle, without charging a stale due date in the past.
+  // If a due date is overdue, count one catch-up charge today, then future
+  // occurrences remain anchored to the original calendar day.
+  const renewalEvents: { dateNum: number; amount: number; subscriptionId: string }[] = [];
+  for (const sub of active) {
+    if (!sub.nextRenewal || !Number.isFinite(dayNum(sub.nextRenewal))) continue;
+    const firstDueN = dayNum(sub.nextRenewal);
+    if (firstDueN > endN) continue;
+    if (firstDueN < todayN) renewalEvents.push({ dateNum: todayN, amount: sub.amount, subscriptionId: sub.id });
+    const maxOffset = Math.ceil(Math.max(0, endN - firstDueN) / 28) + 1;
+    for (let offset = 0; offset <= maxOffset; offset++) {
+      const occurrenceN = dayNum(monthOccurrence(sub.nextRenewal, offset));
+      if (occurrenceN < Math.max(firstDueN, todayN)) continue;
+      if (occurrenceN > endN) break;
+      renewalEvents.push({ dateNum: occurrenceN, amount: sub.amount, subscriptionId: sub.id });
+    }
+  }
+  const upcoming = renewalEvents.reduce((sum, event) => sum + event.amount, 0);
+  // Keep the allowance, end forecast and chart on one shared cash-flow model.
+  const freeToSpend = balance + futureNet - upcoming;
   const dailyAllowance = Math.max(0, freeToSpend / daysLeft);
 
   const rawPace = discretionary / day;
   const w = Math.min(1, day / 5);
   const pace = w * rawPace + (1 - w) * dailyAllowance;
-  const remainingDays = L - day;
-  const forecastEnd = freeToSpend - pace * remainingDays;
+  const forecastAtDay = (i: number) => {
+    const dn = startN + i - 1;
+    const scheduled = futureTransactions
+      .filter((t) => dayNum(t.date) <= dn)
+      .reduce((sum, t) => sum + effect(t), 0);
+    const renewals = renewalEvents
+      .filter((event) => event.dateNum <= dn)
+      .reduce((sum, event) => sum + event.amount, 0);
+    return balance + scheduled - renewals - pace * (i - day);
+  };
+  const forecastEnd = forecastAtDay(L);
   let zeroDay: number | null = null;
-  if (freeToSpend <= 0) zeroDay = day;
-  else if (forecastEnd < 0 && pace > 0) zeroDay = Math.min(L, day + Math.floor(freeToSpend / pace));
+  for (let i = day; i <= L; i++) {
+    if (forecastAtDay(i) <= 0) {
+      zeroDay = i;
+      break;
+    }
+  }
   const surplusPerDay = Math.max(0, forecastEnd) / daysLeft;
 
   const bufferTarget = start * 0.1;
@@ -192,17 +242,16 @@ export function compute(input: EngineInput): Metrics {
 
   // Series
   const series: Metrics['series'] = [];
-  const sorted = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = [...postedTransactions].sort((a, b) => a.date.localeCompare(b.date));
   for (let i = 1; i <= L; i++) {
     const dn = startN + i - 1;
     const point = { day: i, label: `D${i}`, actual: null as number | null, forecast: null as number | null };
     if (i <= day) {
-      point.actual = Math.round(start + sorted.filter((t) => dayNum(t.date) <= dn).reduce((a, t) => a + effect(t), 0));
+      point.actual = Math.round(start + sorted
+        .filter((t) => dayNum(t.date) <= dn)
+        .reduce((a, t) => a + effect(t), 0));
     }
-    if (i >= day) {
-      const renewals = dueInCycle.filter((s) => Math.max(dayNum(s.nextRenewal), todayN) <= dn).reduce((a, s) => a + s.amount, 0);
-      point.forecast = Math.round(balance - renewals - pace * (i - day));
-    }
+    if (i >= day) point.forecast = Math.round(forecastAtDay(i));
     series.push(point);
   }
 
@@ -218,7 +267,7 @@ export function compute(input: EngineInput): Metrics {
 
   const inr = (n: number) => `₹${Math.round(Math.abs(n)).toLocaleString('en-IN')}`;
   let nudge = '';
-  if (freeToSpend < 0) nudge = `Your upcoming bills are ${inr(freeToSpend)} more than your balance. Pause a subscription or add income ASAP.`;
+  if (freeToSpend < 0) nudge = `Your planned cash flows exceed available money by ${inr(freeToSpend)}. Reduce a cost or add income ASAP.`;
   else if (risk === 'Critical' || risk === 'High')
     nudge = `At this pace you'll hit ₹0 on day ${zeroDay}. Cut ${inr(pace - dailyAllowance)}/day to finish strong.`;
   else if (risk === 'Medium') nudge = `You're on track but running thin. Keep daily spend under ${inr(dailyAllowance)} to build a buffer.`;
