@@ -110,10 +110,20 @@ export function compute(input: EngineInput): Metrics {
   const day = Math.max(1, Math.min(L, todayN - startN + 1));
   const daysLeft = L - day + 1;
 
+  // Only transactions inside this cycle affect its totals. Posted transactions
+  // (dated today or earlier) define the live balance; future-dated entries are
+  // scheduled cash flows and belong in the forecast, not today's balance.
+  const cycleTransactions = transactions.filter((t) => {
+    const n = dayNum(t.date);
+    return n >= startN && n <= endN;
+  });
+  const postedTransactions = cycleTransactions.filter((t) => dayNum(t.date) <= todayN);
+  const futureTransactions = cycleTransactions.filter((t) => dayNum(t.date) > todayN);
+
   let income = 0, spent = 0, goalNet = 0, unexpected = 0, discretionary = 0;
   const catMap: Record<string, number> = {};
   const dailyDisc: Record<number, number> = {};
-  for (const t of transactions) {
+  for (const t of postedTransactions) {
     if (t.type === 'Income') income += t.amount;
     else if (t.type === 'Expense') {
       spent += t.amount;
@@ -128,26 +138,41 @@ export function compute(input: EngineInput): Metrics {
     else if (t.type === 'Goal Withdrawal') goalNet -= t.amount;
   }
   const balance = start + income - spent - goalNet;
+  const futureNet = futureTransactions.reduce((sum, t) => sum + effect(t), 0);
 
   const active = subscriptions.filter((s) => s.status === 'Active');
   const monthlyCommitments = active.reduce((a, s) => a + s.amount, 0);
   const dueInCycle = active.filter((s) => {
     if (!s.nextRenewal) return false;
-    const n = dayNum(s.nextRenewal);
-    return n <= endN; // overdue counts as still owed
+    return dayNum(s.nextRenewal) <= endN; // overdue renewals are forecast for today
   });
   const upcoming = dueInCycle.reduce((a, s) => a + s.amount, 0);
-  const freeToSpend = balance - upcoming;
+  // Keep the allowance, end forecast and chart on one shared cash-flow model.
+  const freeToSpend = balance + futureNet - upcoming;
   const dailyAllowance = Math.max(0, freeToSpend / daysLeft);
 
   const rawPace = discretionary / day;
   const w = Math.min(1, day / 5);
   const pace = w * rawPace + (1 - w) * dailyAllowance;
   const remainingDays = L - day;
-  const forecastEnd = freeToSpend - pace * remainingDays;
+  const forecastAtDay = (i: number) => {
+    const dn = startN + i - 1;
+    const scheduled = futureTransactions
+      .filter((t) => dayNum(t.date) <= dn)
+      .reduce((sum, t) => sum + effect(t), 0);
+    const renewals = dueInCycle
+      .filter((s) => Math.max(dayNum(s.nextRenewal), todayN) <= dn)
+      .reduce((sum, s) => sum + s.amount, 0);
+    return balance + scheduled - renewals - pace * (i - day);
+  };
+  const forecastEnd = forecastAtDay(L);
   let zeroDay: number | null = null;
-  if (freeToSpend <= 0) zeroDay = day;
-  else if (forecastEnd < 0 && pace > 0) zeroDay = Math.min(L, day + Math.floor(freeToSpend / pace));
+  for (let i = day; i <= L; i++) {
+    if (forecastAtDay(i) <= 0) {
+      zeroDay = i;
+      break;
+    }
+  }
   const surplusPerDay = Math.max(0, forecastEnd) / daysLeft;
 
   const bufferTarget = start * 0.1;
@@ -192,17 +217,16 @@ export function compute(input: EngineInput): Metrics {
 
   // Series
   const series: Metrics['series'] = [];
-  const sorted = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = [...postedTransactions].sort((a, b) => a.date.localeCompare(b.date));
   for (let i = 1; i <= L; i++) {
     const dn = startN + i - 1;
     const point = { day: i, label: `D${i}`, actual: null as number | null, forecast: null as number | null };
     if (i <= day) {
-      point.actual = Math.round(start + sorted.filter((t) => dayNum(t.date) <= dn).reduce((a, t) => a + effect(t), 0));
+      point.actual = Math.round(start + sorted
+        .filter((t) => dayNum(t.date) <= dn)
+        .reduce((a, t) => a + effect(t), 0));
     }
-    if (i >= day) {
-      const renewals = dueInCycle.filter((s) => Math.max(dayNum(s.nextRenewal), todayN) <= dn).reduce((a, s) => a + s.amount, 0);
-      point.forecast = Math.round(balance - renewals - pace * (i - day));
-    }
+    if (i >= day) point.forecast = Math.round(forecastAtDay(i));
     series.push(point);
   }
 
