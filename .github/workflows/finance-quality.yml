@@ -16,11 +16,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: yarn
       - name: Enable Corepack
         run: corepack enable
       - name: Install dependencies
-        run: corepack yarn install --frozen-lockfile
+        run: corepack yarn install --no-lockfile
       - name: Type-check application
         run: corepack yarn typecheck
       - name: Run finance regression tests
