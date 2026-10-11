@@ -97,4 +97,34 @@ check('cancelling a subscription removes its projected renewal', () => {
   assert.ok(result.after.forecastEnd > result.before.forecastEnd);
 });
 
+// Monthly renewal forecast is reflected in the available budget and projected ending balance.
+check('active subscription renewal reduces the forecast and allowance', () => {
+  const input = { ...base, subscriptions: [{ id: 'sub-monthly', name: 'Music', amount: 300, kind: 'Subscription', nextRenewal: '2026-10-20', status: 'Active' }] };
+  const metrics = compute(input);
+  assert.equal(metrics.upcoming, 300);
+  assert.equal(metrics.monthlyCommitments, 300);
+  assert.ok(metrics.dailyAllowance < compute(base).dailyAllowance);
+  assert.ok(metrics.forecastEnd < compute(base).forecastEnd);
+});
+
+// A renewal due before today is counted once as a catch-up charge, not twice.
+check('overdue renewal is counted once in the cycle forecast', () => {
+  const input = { ...base, today: '2026-10-25', subscriptions: [{ id: 'sub-overdue', name: 'Cloud', amount: 250, kind: 'Subscription', nextRenewal: '2026-10-20', status: 'Active' }] };
+  assert.equal(compute(input).upcoming, 250);
+});
+
+// Health score and factor points remain inside their documented ranges.
+check('health score remains between 0 and 100', () => {
+  const metrics = compute({ ...base, transactions: [{ id: 'big', title: 'Big spend', amount: 20000, type: 'Expense', category: 'Shopping', isUnexpected: true, date: today, note: '' }] });
+  assert.ok(metrics.score >= 0 && metrics.score <= 100);
+  assert.ok(metrics.factors.every((f) => f.points >= 0 && f.points <= f.max));
+});
+
+// A lower-cost alternative should preserve more forecast cash than the original purchase.
+check('lower-cost purchase alternative preserves more forecast cash', () => {
+  const original = simulate(base, { type: 'One-time Buy', label: 'Full price', amount: 2000, category: 'Shopping' });
+  const alternative = simulate(base, { type: 'One-time Buy', label: 'Budget pick', amount: 1000, category: 'Shopping' });
+  assert.ok(alternative.after.forecastEnd > original.after.forecastEnd);
+});
+
 process.stdout.write('All finance regression checks passed.\n');
