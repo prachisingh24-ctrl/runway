@@ -89,10 +89,21 @@ export const dayNum = (s: string) => {
   return Math.floor(Date.UTC(y, m - 1, d) / 86400000);
 };
 export const dateFromNum = (n: number) => new Date(n * 86400000).toISOString().slice(0, 10);
+
+// Monthly renewals stay anchored to the original due day (e.g. Jan 31 -> Feb 28 -> Mar 31).
 export const addMonth = (s: string) => {
-  const [y, m, d] = s.split('-').map(Number);
-  const dt = new Date(Date.UTC(y, m, Math.min(d, 28)));
-  return dt.toISOString().slice(0, 10);
+  const [y, m, d] = s.slice(0, 10).split('-').map(Number);
+  const targetMonth = m; // JavaScript UTC month is zero-based; m is the next month.
+  const lastDay = new Date(Date.UTC(y, targetMonth + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(y, targetMonth, Math.min(d, lastDay))).toISOString().slice(0, 10);
+};
+const monthOccurrence = (anchor: string, offset: number) => {
+  const [y, m, d] = anchor.slice(0, 10).split('-').map(Number);
+  const targetMonthIndex = (m - 1) + offset;
+  const targetYear = y + Math.floor(targetMonthIndex / 12);
+  const monthIndex = ((targetMonthIndex % 12) + 12) % 12;
+  const lastDay = new Date(Date.UTC(targetYear, monthIndex + 1, 0)).getUTCDate();
+  return dateFromNum(Math.floor(Date.UTC(targetYear, monthIndex, Math.min(d, lastDay)) / 86400000));
 };
 
 function effect(t: Txn) {
@@ -142,11 +153,26 @@ export function compute(input: EngineInput): Metrics {
 
   const active = subscriptions.filter((s) => s.status === 'Active');
   const monthlyCommitments = active.reduce((a, s) => a + s.amount, 0);
-  const dueInCycle = active.filter((s) => {
-    if (!s.nextRenewal) return false;
-    return dayNum(s.nextRenewal) <= endN; // overdue renewals are forecast for today
-  });
-  const upcoming = dueInCycle.reduce((a, s) => a + s.amount, 0);
+
+  // The form stores a monthly amount and a next-due date. Project each monthly
+  // occurrence inside this cycle, without charging a stale due date in the past.
+  // If a due date is overdue, count one catch-up charge today, then future
+  // occurrences remain anchored to the original calendar day.
+  const renewalEvents: { dateNum: number; amount: number; subscriptionId: string }[] = [];
+  for (const sub of active) {
+    if (!sub.nextRenewal || !Number.isFinite(dayNum(sub.nextRenewal))) continue;
+    const firstDueN = dayNum(sub.nextRenewal);
+    if (firstDueN > endN) continue;
+    if (firstDueN < todayN) renewalEvents.push({ dateNum: todayN, amount: sub.amount, subscriptionId: sub.id });
+    const maxOffset = Math.ceil(Math.max(0, endN - firstDueN) / 28) + 1;
+    for (let offset = 0; offset <= maxOffset; offset++) {
+      const occurrenceN = dayNum(monthOccurrence(sub.nextRenewal, offset));
+      if (occurrenceN < Math.max(firstDueN, todayN)) continue;
+      if (occurrenceN > endN) break;
+      renewalEvents.push({ dateNum: occurrenceN, amount: sub.amount, subscriptionId: sub.id });
+    }
+  }
+  const upcoming = renewalEvents.reduce((sum, event) => sum + event.amount, 0);
   // Keep the allowance, end forecast and chart on one shared cash-flow model.
   const freeToSpend = balance + futureNet - upcoming;
   const dailyAllowance = Math.max(0, freeToSpend / daysLeft);
@@ -159,9 +185,9 @@ export function compute(input: EngineInput): Metrics {
     const scheduled = futureTransactions
       .filter((t) => dayNum(t.date) <= dn)
       .reduce((sum, t) => sum + effect(t), 0);
-    const renewals = dueInCycle
-      .filter((s) => Math.max(dayNum(s.nextRenewal), todayN) <= dn)
-      .reduce((sum, s) => sum + s.amount, 0);
+    const renewals = renewalEvents
+      .filter((event) => event.dateNum <= dn)
+      .reduce((sum, event) => sum + event.amount, 0);
     return balance + scheduled - renewals - pace * (i - day);
   };
   const forecastEnd = forecastAtDay(L);
