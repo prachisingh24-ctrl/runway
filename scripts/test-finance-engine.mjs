@@ -159,3 +159,26 @@ check('verdict remains cautious when extra income helps but the plan is still cr
   assert.equal(result.verdict, 'Caution');
 });
 
+
+// Simulation is a preview: it must not mutate saved transactions or goals.
+check('simulation leaves the original input unchanged', () => {
+  const input = {
+    ...base,
+    transactions: [{ id: 'existing', title: 'Existing', amount: 100, type: 'Expense', category: 'Food', isUnexpected: false, date: today, note: '' }],
+    goals: [{ id: 'goal-immutable', goalName: 'Trip', emoji: '✈️', targetAmount: 1000, savedAmount: 100, deadline: '2026-12-01', completed: false }],
+  };
+  const beforeTransactions = structuredClone(input.transactions);
+  const beforeGoals = structuredClone(input.goals);
+  simulate(input, { type: 'Save', label: 'Add savings', amount: 50, goalId: 'goal-immutable' });
+  assert.deepEqual(input.transactions, beforeTransactions);
+  assert.deepEqual(input.goals, beforeGoals);
+});
+
+// A zero starting balance should still produce finite, bounded metrics.
+check('zero starting balance produces finite bounded metrics', () => {
+  const metrics = compute({ ...base, cycle: { ...base.cycle, startingBalance: 0 } });
+  for (const key of ['balance', 'dailyAllowance', 'forecastEnd', 'score']) {
+    assert.ok(Number.isFinite(metrics[key]), `${key} should be finite`);
+  }
+  assert.ok(metrics.score >= 0 && metrics.score <= 100);
+});

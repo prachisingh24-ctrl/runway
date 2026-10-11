@@ -4,6 +4,7 @@
 
 <p align="center">
   <a href="https://ntsppvuale.zite.so"><img alt="Open Runway" src="https://img.shields.io/badge/🚀_OPEN_RUNWAY-Try_the_live_app-7257FF?style=for-the-badge" /></a>
+  <a href="https://github.com/prachisingh24-ctrl/runway/actions/workflows/finance-quality.yml"><img alt="Finance quality checks" src="https://github.com/prachisingh24-ctrl/runway/actions/workflows/finance-quality.yml/badge.svg?branch=main" /></a>
   <a href="https://github.com/prachisingh24-ctrl/runway"><img alt="GitHub repository" src="https://img.shields.io/badge/GitHub-Source_Code-181717?style=for-the-badge&logo=github" /></a>
 </p>
 
@@ -35,6 +36,8 @@ Runway is a personal-finance experience for Gen Z built around a limited **₹10
 | 🛠️ Run the project | [Setup](#-run-locally) |
 | 🧪 Check financial calculations | [Tests](#-quality-checks) |
 | 🏦 Explore the bank integration roadmap | [Bank integrations](#-bank-integrations-and-privacy) |
+| 🧰 Review quality and performance standards | [Quality guide](docs/quality-and-performance.md) |
+| 🤝 Contribute safely | [Contributing guide](CONTRIBUTING.md) |
 | 🗺️ Explore the architecture | [Project map](#-project-map) |
 
 ## 🌈 Built for real-life money decisions
@@ -174,7 +177,7 @@ Explore the [bank integration plan](docs/bank-sync-integration.md) for the propo
 4. Run type-check, finance tests, and build.
 5. Open a pull request describing the user-facing impact and any assumptions.
 
-Ideas, bug reports, and improvements are welcome through [GitHub Issues](https://github.com/prachisingh24-ctrl/runway/issues).
+Read the [contribution guide](CONTRIBUTING.md) and [quality/performance guide](docs/quality-and-performance.md) before making larger changes. Security concerns should follow [SECURITY.md](SECURITY.md). Ideas, bug reports, and improvements are welcome through [GitHub Issues](https://github.com/prachisingh24-ctrl/runway/issues).
 
 ## 📄 License
 
