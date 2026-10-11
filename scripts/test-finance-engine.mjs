@@ -128,3 +128,23 @@ check('lower-cost purchase alternative preserves more forecast cash', () => {
 });
 
 process.stdout.write('All finance regression checks passed.\n');
+
+// Month-end renewals remain anchored to the original due day across short months.
+check('month-end renewals stay anchored and count each in-cycle occurrence once', () => {
+  const input = {
+    ...base,
+    cycle: { ...base.cycle, startDate: '2026-01-01', lengthDays: 90 },
+    today: '2026-01-01',
+    subscriptions: [{ id: 'sub-month-end', name: 'Annual-ish monthly', amount: 300, kind: 'Subscription', nextRenewal: '2026-01-31', status: 'Active' }],
+  };
+  assert.equal(compute(input).upcoming, 900); // Jan 31, Feb 28, Mar 31
+});
+
+// Saving toward a goal moves money out of spendable balance and into goal progress.
+check('goal contribution lowers balance and increases goal progress once', () => {
+  const input = { ...base, goals: [{ id: 'goal-1', goalName: 'Laptop', emoji: '💻', targetAmount: 3000, savedAmount: 500, deadline: '2026-11-10', completed: false }] };
+  const result = simulate(input, { type: 'Save', label: 'Save toward Laptop', amount: 400, goalId: 'goal-1' });
+  assert.equal(result.after.balance, result.before.balance - 400);
+  assert.equal(result.after.goals.find((g) => g.id === 'goal-1')?.remaining, 2100);
+});
+
