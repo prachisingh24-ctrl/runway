@@ -80,6 +80,7 @@ export default function Subscriptions() {
         <div className="rounded-2xl bg-accent text-accent-foreground p-5"><p className="text-xs opacity-80">Locked in each month</p><p className="text-3xl font-bold font-mono">{inr(metrics.monthlyCommitments)}</p></div>
         <div className="rounded-2xl bg-card border border-border p-5"><p className="text-xs text-muted-foreground">Still due this cycle</p><p className="text-3xl font-bold font-mono">{inr(metrics.upcoming)}</p></div>
         <div className="rounded-2xl bg-card border border-border p-5"><p className="text-xs text-muted-foreground">That's</p><p className="text-3xl font-bold font-mono">{daysOfAllowance} days</p><p className="text-xs text-muted-foreground">of your allowance</p></div>
+        <div className="rounded-2xl bg-card border border-border p-5"><p className="text-xs text-muted-foreground">Cycle-end forecast</p><p className="text-3xl font-bold font-mono">{metrics.forecastEnd < 0 ? '−' : ''}{inr(metrics.forecastEnd)}</p><p className="text-xs text-muted-foreground">after planned renewals</p></div>
       </div>
       <div className="grid lg:grid-cols-2 gap-4">
         <section className="rounded-2xl border border-border bg-card p-5">
