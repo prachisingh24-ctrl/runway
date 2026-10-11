@@ -11,6 +11,7 @@ import Goals from './pages/Goals';
 import Subscriptions from './pages/Subscriptions';
 import Health from './pages/Health';
 import Import from './pages/Import';
+import BankConnections from './pages/BankConnections';
 import AppShell from './components/AppShell';
 import Splash from './components/Splash';
 import { FinanceProvider, useFinance } from './lib/finance';
@@ -30,6 +31,7 @@ function SignedIn() {
           <Route path="/subscriptions" element={<Subscriptions />} />
           <Route path="/health" element={<Health />} />
           <Route path="/import" element={<Import />} />
+          <Route path="/connections" element={<BankConnections />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
