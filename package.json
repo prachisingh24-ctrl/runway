@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "npx tsgo --noEmit -p tsconfig.app.json --pretty"
+    "typecheck": "npx tsgo --noEmit -p tsconfig.app.json --pretty",
+    "test:finance": "node scripts/test-finance-engine.mjs"
   },
   "dependencies": {
     "@amplitude/analytics-browser": "2.45.6",
