@@ -331,8 +331,13 @@ export function simulate(input: EngineInput, d: Decision) {
   const riskUp = RISK_RANK[after.risk] > RISK_RANK[before.risk];
   const allowanceDrop = before.dailyAllowance > 0 ? (before.dailyAllowance - after.dailyAllowance) / before.dailyAllowance : 0;
   let verdict: Verdict = 'Safe';
-  if (RISK_RANK[after.risk] >= 2 && (riskUp || after.forecastEnd < before.forecastEnd)) verdict = 'Risky';
-  else if (before.score - after.score >= 8 || riskUp || allowanceDrop > 0.15) verdict = 'Caution';
+  // A decision cannot be labelled Safe while the resulting plan remains in a
+  // high-risk band, even if it improves the baseline slightly.
+  if (after.risk === 'Critical' || after.risk === 'High') {
+    verdict = riskUp || after.forecastEnd < before.forecastEnd ? 'Risky' : 'Caution';
+  } else if (before.score - after.score >= 8 || riskUp || allowanceDrop > 0.15) {
+    verdict = 'Caution';
+  }
 
   const inr = (n: number) => `₹${Math.round(Math.abs(n)).toLocaleString('en-IN')}`;
   let advice = '';

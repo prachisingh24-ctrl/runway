@@ -56,6 +56,7 @@ function MoveDialog({ goal, dir, onClose, onComplete }: { goal: Goal | null; dir
   useEffect(() => setAmt(''), [goal]);
   const n = Number(amt);
   const max = dir === 'withdraw' ? goal?.savedAmount || 0 : Math.max(0, metrics.freeToSpend);
+  const projectedEnd = metrics.forecastEnd + (dir === 'withdraw' ? (n || 0) : -(n || 0));
   const valid = n > 0 && n <= max;
   const submit = async () => {
     if (!goal) return;
@@ -71,7 +72,7 @@ function MoveDialog({ goal, dir, onClose, onComplete }: { goal: Goal | null; dir
       <DialogContent className="sm:max-w-sm">
         <DialogHeader><DialogTitle>{dir === 'add' ? 'Add to' : 'Withdraw from'} {goal?.goalName}</DialogTitle></DialogHeader>
         <Input type="number" autoFocus className="h-14 text-2xl font-mono font-bold" value={amt} onChange={(e) => setAmt(e.target.value)} />
-        <p className="text-xs text-muted-foreground">{dir === 'add' ? `Daily allowance becomes ${inr(Math.max(0, (metrics.freeToSpend - (n || 0)) / metrics.daysLeft))}` : `Up to ${inr(max)} available`}</p>
+        <div className="space-y-1 text-xs text-muted-foreground"><p>{dir === 'add' ? `Daily allowance becomes about ${inr(Math.max(0, (metrics.freeToSpend - (n || 0)) / metrics.daysLeft))}/day` : `Up to ${inr(max)} available to withdraw`}</p><p>Estimated cycle-end forecast after this move: <span className="font-semibold text-foreground">{projectedEnd < 0 ? '−' : ''}{inr(projectedEnd)}</span></p></div>
         {amt && !valid && <p className="text-xs text-destructive">Enter between ₹1 and {inr(max)}</p>}
         <Button className="w-full rounded-full" disabled={!valid || busy} onClick={submit}>{busy ? '…' : 'Confirm'}</Button>
       </DialogContent>
@@ -98,6 +99,11 @@ export default function Goals() {
         <div><h1 className="text-3xl font-bold tracking-tight">Goals</h1><p className="text-sm text-muted-foreground">Money you save leaves your spendable balance — that's the trade-off.</p></div>
         <Button className="rounded-full" onClick={() => setEdit({ open: true, goal: null })}><Plus className="w-4 h-4 mr-1" /> New goal</Button>
       </div>
+      {state.goals.length > 0 && <div className="grid sm:grid-cols-3 gap-3">
+        <div className="rounded-2xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">Saved across goals</p><p className="mt-1 text-2xl font-bold font-mono">{inr(state.goals.reduce((sum, g) => sum + g.savedAmount, 0))}</p></div>
+        <div className="rounded-2xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">Still needed</p><p className="mt-1 text-2xl font-bold font-mono">{inr(state.goals.reduce((sum, g) => sum + Math.max(0, g.targetAmount - g.savedAmount), 0))}</p></div>
+        <div className="rounded-2xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">Current cycle-end forecast</p><p className="mt-1 text-2xl font-bold font-mono">{metrics.forecastEnd < 0 ? '−' : ''}{inr(metrics.forecastEnd)}</p><p className="mt-1 text-xs text-muted-foreground">A new contribution reduces spendable cash by the same amount.</p></div>
+      </div>}
       {state.goals.length === 0 && <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">No goals yet. What are you saving for?</div>}
       <div className="grid md:grid-cols-2 gap-4">
         {state.goals.map((g, i) => {

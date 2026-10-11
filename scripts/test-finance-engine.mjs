@@ -97,4 +97,65 @@ check('cancelling a subscription removes its projected renewal', () => {
   assert.ok(result.after.forecastEnd > result.before.forecastEnd);
 });
 
+// Monthly renewal forecast is reflected in the available budget and projected ending balance.
+check('active subscription renewal reduces the forecast and allowance', () => {
+  const input = { ...base, subscriptions: [{ id: 'sub-monthly', name: 'Music', amount: 300, kind: 'Subscription', nextRenewal: '2026-10-20', status: 'Active' }] };
+  const metrics = compute(input);
+  assert.equal(metrics.upcoming, 300);
+  assert.equal(metrics.monthlyCommitments, 300);
+  assert.ok(metrics.dailyAllowance < compute(base).dailyAllowance);
+  assert.ok(metrics.forecastEnd < compute(base).forecastEnd);
+});
+
+// A renewal due before today is counted once as a catch-up charge, not twice.
+check('overdue renewal is counted once in the cycle forecast', () => {
+  const input = { ...base, today: '2026-10-25', subscriptions: [{ id: 'sub-overdue', name: 'Cloud', amount: 250, kind: 'Subscription', nextRenewal: '2026-10-20', status: 'Active' }] };
+  assert.equal(compute(input).upcoming, 250);
+});
+
+// Health score and factor points remain inside their documented ranges.
+check('health score remains between 0 and 100', () => {
+  const metrics = compute({ ...base, transactions: [{ id: 'big', title: 'Big spend', amount: 20000, type: 'Expense', category: 'Shopping', isUnexpected: true, date: today, note: '' }] });
+  assert.ok(metrics.score >= 0 && metrics.score <= 100);
+  assert.ok(metrics.factors.every((f) => f.points >= 0 && f.points <= f.max));
+});
+
+// A lower-cost alternative should preserve more forecast cash than the original purchase.
+check('lower-cost purchase alternative preserves more forecast cash', () => {
+  const original = simulate(base, { type: 'One-time Buy', label: 'Full price', amount: 2000, category: 'Shopping' });
+  const alternative = simulate(base, { type: 'One-time Buy', label: 'Budget pick', amount: 1000, category: 'Shopping' });
+  assert.ok(alternative.after.forecastEnd > original.after.forecastEnd);
+});
+
 process.stdout.write('All finance regression checks passed.\n');
+
+// Month-end renewals remain anchored to the original due day across short months.
+check('month-end renewals stay anchored and count each in-cycle occurrence once', () => {
+  const input = {
+    ...base,
+    cycle: { ...base.cycle, startDate: '2026-01-01', lengthDays: 90 },
+    today: '2026-01-01',
+    subscriptions: [{ id: 'sub-month-end', name: 'Annual-ish monthly', amount: 300, kind: 'Subscription', nextRenewal: '2026-01-31', status: 'Active' }],
+  };
+  assert.equal(compute(input).upcoming, 900); // Jan 31, Feb 28, Mar 31
+});
+
+// Saving toward a goal moves money out of spendable balance and into goal progress.
+check('goal contribution lowers balance and increases goal progress once', () => {
+  const input = { ...base, goals: [{ id: 'goal-1', goalName: 'Laptop', emoji: '💻', targetAmount: 3000, savedAmount: 500, deadline: '2026-11-10', completed: false }] };
+  const result = simulate(input, { type: 'Save', label: 'Save toward Laptop', amount: 400, goalId: 'goal-1' });
+  assert.equal(result.after.balance, result.before.balance - 400);
+  assert.equal(result.after.goals.find((g) => g.id === 'goal-1')?.remaining, 2100);
+});
+
+// An improving decision must not be called Safe if the resulting plan is still high risk.
+check('verdict remains cautious when extra income helps but the plan is still critical', () => {
+  const stressed = {
+    ...base,
+    transactions: [{ id: 'overspend', title: 'Unexpected emergency', amount: 20000, type: 'Expense', category: 'Bills', isUnexpected: true, date: today, note: '' }],
+  };
+  const result = simulate(stressed, { type: 'Extra Income', label: 'Small gig', amount: 1000 });
+  assert.equal(result.after.risk, 'Critical');
+  assert.equal(result.verdict, 'Caution');
+});
+
