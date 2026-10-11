@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowRight, CheckCircle2, AlertTriangle, ShieldAlert, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, AlertTriangle, ShieldAlert, X, Sparkles, TrendingDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { recordSimulation } from 'zitejs/api';
@@ -73,6 +73,17 @@ export default function Simulator() {
 
   const ready = d.type === 'Cancel Subscription' ? !!effective.subscriptionId && effective.amount > 0 : d.type === 'Save' ? !!d.goalId && d.amount > 0 : d.amount > 0 && !!d.label.trim();
   const sim = useMemo(() => (ready ? simulate(input, effective) : null), [ready, input, effective]);
+  const alternatives = useMemo(() => {
+    if (!sim || (effective.type !== 'One-time Buy' && effective.type !== 'New Subscription')) return [];
+    return [
+      { label: 'Budget pick · 70% of price', factor: 0.7, note: 'Keep the same idea, spend less.' },
+      { label: 'Lean pick · half the price', factor: 0.5, note: 'Choose a simpler or second-hand option.' },
+    ].map((option) => {
+      const amount = Math.max(1, Math.round(effective.amount * option.factor));
+      const result = simulate(input, { ...effective, amount, label: option.label });
+      return { ...option, amount, result };
+    });
+  }, [sim, input, effective]);
 
   const record = async (commit: boolean) => {
     setBusy(true);
@@ -138,6 +149,28 @@ export default function Simulator() {
               ) : <Delta label="Monthly commitments" before={sim.before.monthlyCommitments} after={sim.after.monthlyCommitments} higherIsBetter={false} />}
             </div>
             <div className="rounded-2xl bg-card border border-border p-5"><div className="flex flex-wrap items-start justify-between gap-2 mb-2"><div><p className="font-semibold">Your month, two ways</p><p className="text-xs text-muted-foreground">Compare the baseline with this decision across the remaining days.</p></div><Badge variant="outline">Live preview</Badge></div><ForecastChart series={sim.before.series} compare={sim.after.series} /></div>
+            {(effective.type === 'One-time Buy' || effective.type === 'New Subscription') && <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+              <div className="flex items-start gap-2"><Sparkles className="mt-0.5 h-5 w-5 text-primary" /><div><p className="font-semibold">Try a lower-cost alternative</p><p className="text-xs text-muted-foreground">Estimates use the same budget model. Choose an option to update the live comparison.</p></div></div>
+              <div className="grid sm:grid-cols-2 gap-3">{alternatives.map((option) => <div key={option.factor} className="rounded-xl border border-border p-4">
+                <p className="font-semibold text-sm">{option.label}</p><p className="mt-1 text-xs text-muted-foreground">{option.note}</p>
+                <p className="mt-3 text-lg font-bold font-mono">{inr(option.amount)}{effective.type === 'New Subscription' ? '/mo' : ''}</p>
+                <div className="mt-2 flex justify-between gap-2 text-xs"><span className="text-muted-foreground">Cycle-end forecast</span><span className={option.result.after.forecastEnd >= sim.after.forecastEnd ? 'text-primary font-semibold' : 'font-semibold'}>{inr(option.result.after.forecastEnd)}</span></div>
+                <div className="mt-1 flex justify-between gap-2 text-xs"><span className="text-muted-foreground">More left vs this choice</span><span className="font-semibold">{inr(option.result.after.forecastEnd - sim.after.forecastEnd)}</span></div>
+                <Button size="sm" variant="outline" className="mt-3 w-full rounded-full" onClick={() => setD({ ...d, amount: option.amount, label: option.label })}>Use this alternative</Button>
+              </div>)}</div>
+            </div>}
+            <div className="rounded-2xl border border-border bg-muted/30 p-5">
+              <div className="flex items-center gap-2"><TrendingDown className="h-4 w-4" /><p className="font-semibold">Why this risk level?</p></div>
+              <div className="mt-3 grid sm:grid-cols-2 gap-3 text-sm">
+                <div className="rounded-xl bg-background/80 p-3"><p className="text-xs text-muted-foreground">Forecast change</p><p className="mt-1 font-semibold">{sim.after.forecastEnd >= sim.before.forecastEnd ? '+' : '−'}{inr(Math.abs(sim.after.forecastEnd - sim.before.forecastEnd))}</p><p className="mt-1 text-xs text-muted-foreground">Projected cycle-end balance after this decision.</p></div>
+                <div className="rounded-xl bg-background/80 p-3"><p className="text-xs text-muted-foreground">Daily allowance change</p><p className="mt-1 font-semibold">{sim.after.dailyAllowance - sim.before.dailyAllowance >= 0 ? '+' : '−'}{inr(Math.abs(sim.after.dailyAllowance - sim.before.dailyAllowance))}/day</p><p className="mt-1 text-xs text-muted-foreground">Uses remaining days and scheduled commitments.</p></div>
+              </div>
+              <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                <li>• Risk moves from <strong className="text-foreground">{sim.before.risk}</strong> to <strong className="text-foreground">{sim.after.risk}</strong>{sim.before.risk === sim.after.risk ? ' — this decision does not cross a risk band.' : ' — this decision crosses a risk band.'}</li>
+                <li>• Health score changes from <strong className="text-foreground">{sim.before.score}/100</strong> to <strong className="text-foreground">{sim.after.score}/100</strong>.</li>
+                <li>• {sim.after.zeroDay ? 'At the projected pace, the balance may reach ₹0 around day ' + sim.after.zeroDay + '.' : 'The model does not project a zero-balance day in this cycle.'}</li>
+              </ul>
+            </div>
             <div className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">Applying updates your budget and recalculates connected metrics. Skipping records this what-if in history without applying it.</div>
             <div className="flex flex-wrap gap-3">
               <Button size="lg" className="rounded-full px-8" disabled={busy || !ready} onClick={() => record(true)}>{busy ? "Updating…" : "Apply decision"}</Button>
