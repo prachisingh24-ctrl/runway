@@ -87,10 +87,10 @@ export default function Simulator() {
 
   return (
     <div className="space-y-6">
-      <div><h1 className="text-3xl font-bold tracking-tight">What if I…</h1><p className="text-muted-foreground text-sm">Try a decision. Nothing changes until you hit “Do it”.</p></div>
+      <div><h1 className="text-3xl font-bold tracking-tight">What if I…</h1><p className="text-muted-foreground text-sm">Test the trade-off before money moves. Your saved budget stays unchanged until you apply a decision.</p></div>
       <div className="flex flex-wrap gap-2">{EXAMPLES.map((e) => <Button key={e.label} size="sm" variant="outline" className="rounded-full" onClick={() => setD({ ...d, ...e.d } as Decision)}>{e.label}</Button>)}</div>
 
-      <div className="rounded-2xl bg-card border border-border p-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="rounded-2xl bg-gradient-to-br from-primary/10 via-card to-accent/10 border border-primary/20 p-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div><Label>Decision</Label>
           <Select value={d.type} onValueChange={(v) => setD({ ...d, type: v as DecisionType })}><SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger><SelectContent>{DECISION_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
         </div>
@@ -137,10 +137,11 @@ export default function Simulator() {
                 <Delta label={`${sim.goalImpacts[0].goal.emoji} ${sim.goalImpacts[0].goal.goalName}`} before={sim.goalImpacts[0].before.status} after={sim.goalImpacts[0].after.status} />
               ) : <Delta label="Monthly commitments" before={sim.before.monthlyCommitments} after={sim.after.monthlyCommitments} higherIsBetter={false} />}
             </div>
-            <div className="rounded-2xl bg-card border border-border p-5"><p className="font-semibold mb-2">Forecast with this decision</p><ForecastChart series={sim.before.series} compare={sim.after.series} /></div>
-            <div className="flex gap-3">
-              <Button size="lg" className="rounded-full px-8" disabled={busy} onClick={() => record(true)}>Do it</Button>
-              <Button size="lg" variant="outline" className="rounded-full" disabled={busy} onClick={() => record(false)}><X className="w-4 h-4 mr-1" /> Discard</Button>
+            <div className="rounded-2xl bg-card border border-border p-5"><div className="flex flex-wrap items-start justify-between gap-2 mb-2"><div><p className="font-semibold">Your month, two ways</p><p className="text-xs text-muted-foreground">Compare the baseline with this decision across the remaining days.</p></div><Badge variant="outline">Live preview</Badge></div><ForecastChart series={sim.before.series} compare={sim.after.series} /></div>
+            <div className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">Applying updates your budget and recalculates connected metrics. Skipping records this what-if in history without applying it.</div>
+            <div className="flex flex-wrap gap-3">
+              <Button size="lg" className="rounded-full px-8" disabled={busy || !ready} onClick={() => record(true)}>{busy ? "Updating…" : "Apply decision"}</Button>
+              <Button size="lg" variant="outline" className="rounded-full" disabled={busy} onClick={() => record(false)}><X className="w-4 h-4 mr-1" /> Skip & save to history</Button>
             </div>
           </motion.div>
         )}
