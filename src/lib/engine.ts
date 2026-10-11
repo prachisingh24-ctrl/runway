@@ -154,7 +154,6 @@ export function compute(input: EngineInput): Metrics {
   const rawPace = discretionary / day;
   const w = Math.min(1, day / 5);
   const pace = w * rawPace + (1 - w) * dailyAllowance;
-  const remainingDays = L - day;
   const forecastAtDay = (i: number) => {
     const dn = startN + i - 1;
     const scheduled = futureTransactions
@@ -242,7 +241,7 @@ export function compute(input: EngineInput): Metrics {
 
   const inr = (n: number) => `₹${Math.round(Math.abs(n)).toLocaleString('en-IN')}`;
   let nudge = '';
-  if (freeToSpend < 0) nudge = `Your upcoming bills are ${inr(freeToSpend)} more than your balance. Pause a subscription or add income ASAP.`;
+  if (freeToSpend < 0) nudge = `Your planned cash flows exceed available money by ${inr(freeToSpend)}. Reduce a cost or add income ASAP.`;
   else if (risk === 'Critical' || risk === 'High')
     nudge = `At this pace you'll hit ₹0 on day ${zeroDay}. Cut ${inr(pace - dailyAllowance)}/day to finish strong.`;
   else if (risk === 'Medium') nudge = `You're on track but running thin. Keep daily spend under ${inr(dailyAllowance)} to build a buffer.`;
