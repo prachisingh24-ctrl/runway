@@ -129,7 +129,7 @@
     "dropbox": "10.47.0",
     "estree-walker": "^3.0.3",
     "globals": "^15.15.0",
-    "googleapis": "171.2.0",
+    "googleapis": "184.0.0",
     "intercom-client": "7.0.3",
     "jsforce": "3.10.14",
     "magic-string": "^0.30.17",
