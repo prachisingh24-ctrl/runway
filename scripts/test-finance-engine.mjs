@@ -148,3 +148,14 @@ check('goal contribution lowers balance and increases goal progress once', () =>
   assert.equal(result.after.goals.find((g) => g.id === 'goal-1')?.remaining, 2100);
 });
 
+// An improving decision must not be called Safe if the resulting plan is still high risk.
+check('verdict remains cautious when extra income helps but the plan is still critical', () => {
+  const stressed = {
+    ...base,
+    transactions: [{ id: 'overspend', title: 'Unexpected emergency', amount: 20000, type: 'Expense', category: 'Bills', isUnexpected: true, date: today, note: '' }],
+  };
+  const result = simulate(stressed, { type: 'Extra Income', label: 'Small gig', amount: 1000 });
+  assert.equal(result.after.risk, 'Critical');
+  assert.equal(result.verdict, 'Caution');
+});
+
