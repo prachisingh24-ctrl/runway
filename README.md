@@ -33,7 +33,7 @@ Runway is a personal-finance experience for Gen Z built around a limited **₹10
 | 💸 Explore the feature set | [Features](#-built-for-real-life-money-decisions) |
 | 🛠️ Run the project | [Setup](#-run-locally) |
 | 🧪 Check financial calculations | [Tests](#-quality-checks) |
-| 🔐 Understand bank-sync limitations | [Bank-sync status](#-bank-sync--privacy) |
+| 🏦 Explore the bank integration roadmap | [Bank integrations](#-bank-integrations-and-privacy) |
 | 🗺️ Explore the architecture | [Project map](#-project-map) |
 
 ## 🌈 Built for real-life money decisions
@@ -86,7 +86,7 @@ The numbers are planning estimates based on information entered by the user—no
 
 ## 🛠️ Run locally
 
-Runway uses Zite for authentication, database access, and backend endpoints. The source repository is available here, but a plain checkout does **not** provide the connected Zite services or project-specific generated modules.
+Runway uses Zite for authentication, database access, and backend endpoints. For the complete experience, open the live app or work from the connected Zite project. The repository contains the application source and project configuration.
 
 ### Prerequisites
 
@@ -101,7 +101,7 @@ corepack yarn install
 corepack yarn dev
 ```
 
-Vite uses port `8080` by default. The app's sign-in, data, and backend flows require the connected Zite configuration.
+Vite uses port `8080` by default. Connect the project to its Zite environment to use authenticated sign-in, persisted data, and backend features.
 
 ### Useful commands
 
@@ -115,7 +115,7 @@ Vite uses port `8080` by default. The app's sign-in, data, and backend flows req
 
 ## 🧪 Quality checks
 
-Before publishing, run:
+Use these checks to keep the project reliable as you improve it:
 
 ```bash
 corepack yarn typecheck
@@ -123,7 +123,7 @@ corepack yarn test:finance
 corepack yarn build
 ```
 
-The finance regression checks cover starting balance, posted and future transactions, cycle boundaries, chart/forecast consistency, and subscription-cancellation simulations. A successful build or GitHub merge does not, by itself, confirm the live Zite deployment has updated.
+The finance regression checks cover starting balance, posted and future transactions, cycle boundaries, chart/forecast consistency, and subscription-cancellation simulations. After merging changes, check the connected Zite deployment to confirm the latest version is published.
 
 ## 🗺️ Project map
 
@@ -153,15 +153,13 @@ scripts/
 - **Forms & validation:** React Hook Form and Zod
 - **Backend:** Zite authentication, database access, and server endpoints
 
-## 🔐 Bank-sync & privacy
+## 🏦 Bank integrations & privacy
 
-**Live bank syncing is not configured.** The Banks screen is currently a setup experience, not a working connection to a bank or Paytm transaction history.
+Runway is designed to support secure, consent-based bank integrations as the product evolves. The bank integration roadmap covers provider selection, explicit user consent, secure server-side credentials, transaction deduplication, and end-to-end verification.
 
-A future integration needs an eligible India-compatible provider, explicit user consent, sandbox/production access, server-side credentials, secure callbacks, transaction deduplication, and end-to-end testing. Phone verification alone does not authorize access to financial transaction history.
+Today, users can manage finances through manual entries, statement imports, and the available SMS-import flow. Review imported details before saving, and never enter bank passwords, UPI PINs, or OTPs into Runway.
 
-Until then, use manual entry, statement import, or the available SMS-import flow—and review imported details before saving. Never enter bank passwords, UPI PINs, or OTPs into Runway.
-
-Read the [bank-sync integration plan](docs/bank-sync-integration.md) for the architecture and security checklist.
+Explore the [bank integration plan](docs/bank-sync-integration.md) for the proposed architecture and security checklist.
 
 ## 🤝 Contributing
 
