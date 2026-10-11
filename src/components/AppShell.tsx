@@ -82,8 +82,9 @@ export default function AppShell() {
       <button onClick={() => setAddOpen(true)} className="md:hidden fixed bottom-20 right-5 z-40 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-2xl flex items-center justify-center" aria-label="Log money"><Plus className="w-6 h-6" /></button>
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-sidebar border-t border-sidebar-border grid grid-cols-7">
         {NAV.map((n) => (
-          <NavLink key={n.to} to={n.to} end className={({ isActive }) => cn('flex flex-col items-center gap-1 py-2.5 text-[10px]', isActive ? 'text-primary' : 'text-muted-foreground')}>
-            <n.icon className="w-5 h-5" /> {n.label}
+          <NavLink key={n.to} to={n.to} end className={({ isActive }) => cn('min-w-0 flex flex-col items-center gap-1 py-2.5 text-[10px]', isActive ? 'text-primary' : 'text-muted-foreground')}>
+            <n.icon className="w-5 h-5 shrink-0" />
+            <span className="block w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-center px-0.5">{n.label}</span>
           </NavLink>
         ))}
       </nav>
