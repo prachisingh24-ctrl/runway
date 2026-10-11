@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, CalendarClock, CircleDollarSign, FlaskConical, Lightbulb, Repeat2, Target, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
+import { ArrowRight, CalendarClock, CircleDollarSign, FlaskConical, Lightbulb, Repeat2, Target, TrendingDown, TrendingUp } from 'lucide-react';
 import { useAuth } from 'zitejs/auth';
 import { Progress } from '@project/components/ui/progress';
 import { Button } from '@project/components/ui/button';
