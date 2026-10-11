@@ -138,12 +138,12 @@ export default function Simulator() {
             {(() => { const V = VERDICT[sim.verdict]; return (
               <div className={`rounded-2xl border p-5 flex items-start gap-3 ${V.cls}`}><V.icon className="w-6 h-6 shrink-0" /><div><p className="font-bold text-lg">Verdict: {sim.verdict}</p><p className="text-sm text-foreground/90">{sim.advice}</p></div></div>
             ); })()}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <Delta label="Remaining balance" before={sim.before.balance} after={sim.after.balance} />
               <Delta label="Daily allowance" before={sim.before.dailyAllowance} after={sim.after.dailyAllowance} />
               <Delta label="Health Score" before={sim.before.score} after={sim.after.score} fmt={(n) => String(n)} />
               <Delta label="Risk" before={sim.before.risk} after={sim.after.risk} />
-              <Delta label="Day-30 forecast" before={sim.before.forecastEnd} after={sim.after.forecastEnd} />
+              <Delta label={`Day-${sim.before.length} forecast`} before={sim.before.forecastEnd} after={sim.after.forecastEnd} />
               {sim.goalImpacts[0] ? (
                 <Delta label={`${sim.goalImpacts[0].goal.emoji} ${sim.goalImpacts[0].goal.goalName}`} before={sim.goalImpacts[0].before.status} after={sim.goalImpacts[0].after.status} />
               ) : <Delta label="Monthly commitments" before={sim.before.monthlyCommitments} after={sim.after.monthlyCommitments} higherIsBetter={false} />}
