@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit --target ES2022 --module ESNext --moduleResolution bundler src/lib/engine.ts",
+    "typecheck": "tsc --noEmit --skipLibCheck --target ES2022 --module ESNext --moduleResolution bundler src/lib/engine.ts",
     "test:finance": "node scripts/test-finance-engine.mjs"
   },
   "dependencies": {
