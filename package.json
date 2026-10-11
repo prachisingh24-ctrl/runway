@@ -105,7 +105,7 @@
     "@babel/parser": "^7.26.10",
     "@babel/types": "^7.26.10",
     "@clickhouse/client-web": "1.23.1",
-    "@elevenlabs/elevenlabs-js": "2.63.0",
+    "@elevenlabs/elevenlabs-js": "2.71.0",
     "@google/generative-ai": "0.21.0",
     "@hubspot/api-client": "13.5.0",
     "@linear/sdk": "73.0.0",
