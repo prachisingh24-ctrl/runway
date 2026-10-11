@@ -29,6 +29,7 @@ Runway is a personal-finance experience for Gen Z built around a limited **₹10
 | Want to… | Go to |
 |---|---|
 | 🚀 Try Runway | [Live app](https://ntsppvuale.zite.so) |
+| 🌐 Deployment | [Open the deployed website](https://ntsppvuale.zite.so) |
 | 🧠 Understand the decision simulator | [How it works](#-the-runway-loop) |
 | 💸 Explore the feature set | [Features](#-built-for-real-life-money-decisions) |
 | 🛠️ Run the project | [Setup](#-run-locally) |
@@ -83,6 +84,10 @@ A purchase is more than a line in a transaction list. Depending on the decision,
 - **Health score:** a 0–100 estimate with a breakdown of contributing factors.
 
 The numbers are planning estimates based on information entered by the user—not financial advice or a verified bank balance.
+
+## 🚀 Deployment
+
+Website: [https://ntsppvuale.zite.so](https://ntsppvuale.zite.so)
 
 ## 🛠️ Run locally
 
