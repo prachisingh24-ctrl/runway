@@ -20,9 +20,14 @@ jobs:
         run: corepack enable
       - name: Install dependencies
         run: corepack yarn install --no-lockfile
-      - name: Type-check application
+      - name: Type-check finance engine
         run: corepack yarn typecheck
       - name: Run finance regression tests
         run: corepack yarn test:finance
-      - name: Build application
-        run: corepack yarn build
+      - name: Build application when the Zite workspace is available
+        run: |
+          if [ -d .zite ] && [ -d ../../packages/components ]; then
+            corepack yarn build
+          else
+            echo "::warning::Full app build skipped: this repository checkout does not include Zite-generated .zite files or the shared @project/components workspace. Run the full build in the Zite environment."
+          fi
